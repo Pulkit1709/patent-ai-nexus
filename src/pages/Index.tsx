@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import AppNavigation from "../components/AppNavigation";
 import PatentSearch from "../components/PatentSearch";
@@ -9,7 +10,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("search");
 
   return (
-    <div className="min-h-screen flex flex-col bg-patent-background">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <AppNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className="flex-grow">
