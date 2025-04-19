@@ -48,6 +48,12 @@ export interface SearchResult {
     diversity_penalty: number;
   };
   classification?: Classification;
+  matched_keywords?: string[];
+  debugging?: {
+    original_score?: number;
+    enhanced_score?: number;
+    weights_used?: Record<string, number>;
+  };
 }
 
 /**
@@ -57,6 +63,9 @@ export interface SearchRequest {
   query: string;
   limit?: number;
   useAdrlcs?: boolean; // Toggle to use full ADRLCS pipeline or just basic search
+  semanticThreshold?: number; // Minimum semantic similarity score (0-1)
+  useEnhancedScoring?: boolean; // Use improved scoring weights
+  useQueryExpansion?: boolean; // Expand query with technical terms
 }
 
 /**

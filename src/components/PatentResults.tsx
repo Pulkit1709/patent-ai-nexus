@@ -3,7 +3,14 @@ import React, { useState } from "react";
 import { SearchResult, Classification } from "../types/patent";
 import { classifyPatent } from "../services/api";
 import { Button } from "./ui/button";
-import { Loader } from "lucide-react";
+import { Badge } from "./ui/badge";
+import { Loader, Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 interface PatentResultsProps {
   results: SearchResult[];
@@ -13,6 +20,7 @@ const PatentResults: React.FC<PatentResultsProps> = ({ results }) => {
   const [classifying, setClassifying] = useState<Record<string, boolean>>({});
   const [classifications, setClassifications] = useState<Record<string, Classification[]>>({});
   const [expandedAbstracts, setExpandedAbstracts] = useState<Record<string, boolean>>({});
+  const [showDebugInfo, setShowDebugInfo] = useState<Record<string, boolean>>({});
 
   const handleClassify = async (patentId: string) => {
     setClassifying(prev => ({ ...prev, [patentId]: true }));
@@ -40,6 +48,13 @@ const PatentResults: React.FC<PatentResultsProps> = ({ results }) => {
     }));
   };
 
+  const toggleDebugInfo = (patentId: string) => {
+    setShowDebugInfo(prev => ({ 
+      ...prev, 
+      [patentId]: !prev[patentId] 
+    }));
+  };
+
   if (results.length === 0) {
     return (
       <div className="patent-no-results">
@@ -55,11 +70,29 @@ const PatentResults: React.FC<PatentResultsProps> = ({ results }) => {
         const patentClassifications = classifications[patentId] || 
                                      (result.classification ? [result.classification] : []);
         const isExpanded = expandedAbstracts[patentId] || false;
+        const isDebugVisible = showDebugInfo[patentId] || false;
         
         return (
           <div key={patentId} className="patent-card">
             <div className="patent-card-header">
               <h2 className="patent-card-title">{result.patent.title}</h2>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-auto h-6 w-6"
+                      onClick={() => toggleDebugInfo(patentId)}
+                    >
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle debugging information</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             
             <div className="patent-card-body">
@@ -74,6 +107,20 @@ const PatentResults: React.FC<PatentResultsProps> = ({ results }) => {
                 >
                   {isExpanded ? "Show less" : "Show more"}
                 </button>
+              )}
+              
+              {/* Matched Keywords */}
+              {result.matched_keywords && result.matched_keywords.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500 mb-1">Matched Keywords:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {result.matched_keywords.map((keyword, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
               )}
               
               {/* Relevance Scores */}
@@ -110,8 +157,36 @@ const PatentResults: React.FC<PatentResultsProps> = ({ results }) => {
                 </div>
               </div>
               
+              {/* Debug Info */}
+              {isDebugVisible && result.debugging && (
+                <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-xs">
+                  <h4 className="font-medium text-sm mb-2">Debugging Information</h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span>Standard Score:</span>
+                      <span>{(result.debugging.original_score || 0 * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Enhanced Score:</span>
+                      <span>{(result.debugging.enhanced_score || 0 * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="pt-2 mt-2 border-t border-gray-200">
+                      <span className="font-medium">Weights Used:</span>
+                      <div className="grid grid-cols-3 gap-x-4 gap-y-1 mt-1">
+                        {result.debugging.weights_used && Object.entries(result.debugging.weights_used).map(([key, value]) => (
+                          <div key={key} className="flex justify-between">
+                            <span>{key}:</span>
+                            <span>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Classifications */}
-              <div className="patent-card-meta">
+              <div className="patent-card-meta mt-4">
                 {patentClassifications.map((classification, index) => (
                   <span key={index} className="patent-card-tag">
                     {classification.domain}
