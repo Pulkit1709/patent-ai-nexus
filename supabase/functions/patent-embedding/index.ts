@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Configuration, OpenAIApi } from 'openai';
+import { Configuration, OpenAIApi } from 'https://esm.sh/openai@3.2.1';
 
 const supabaseClient = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',

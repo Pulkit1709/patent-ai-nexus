@@ -14,6 +14,7 @@ export async function searchPatents(request: SearchRequest): Promise<SearchRespo
       abstract,
       created_at,
       classifications (
+        patent_id,
         domain,
         confidence
       )
@@ -42,7 +43,11 @@ export async function searchPatents(request: SearchRequest): Promise<SearchRespo
         final: 0.7,
         diversity_penalty: 0.1
       },
-      classification: patent.classifications?.[0]
+      classification: patent.classifications?.[0] ? {
+        patent_id: patent.id, // Add the missing patent_id
+        domain: patent.classifications[0].domain,
+        confidence: patent.classifications[0].confidence
+      } : undefined
     })),
     timing_ms: 100,
     pipeline_stages: [
