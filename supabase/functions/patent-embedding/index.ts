@@ -1,5 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { Configuration, OpenAIApi } from 'https://esm.sh/openai@3.2.1';
 
 const supabaseClient = createClient(
