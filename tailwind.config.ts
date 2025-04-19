@@ -19,6 +19,13 @@ export default {
 		},
 		extend: {
 			colors: {
+				patent: {
+					primary: '#0A2463',
+					secondary: '#147D64',
+					highlight: '#E67E22',
+					background: '#F8F9FA',
+					text: '#1A202C'
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',

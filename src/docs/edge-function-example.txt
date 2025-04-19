@@ -1,0 +1,131 @@
+
+/**
+ * Supabase Edge Function for Patent Embeddings
+ * 
+ * This function is triggered when a new patent is inserted into the 'patents' table.
+ * It:
+ * 1. Calls OpenAI API to generate embeddings
+ * 2. Calls a GNN service to generate graph embeddings
+ * 3. Updates the patent record with both embeddings
+ */
+
+// Import Supabase client
+import { createClient } from '@supabase/supabase-js';
+import { Configuration, OpenAIApi } from 'openai';
+
+// Initialize Supabase client with environment variables
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
+// Initialize OpenAI
+const configuration = new Configuration({
+  apiKey: Deno.env.get('OPENAI_API_KEY')
+});
+const openai = new OpenAIApi(configuration);
+
+// GNN Service URL
+const GNN_SERVICE_URL = Deno.env.get('GNN_SERVICE_URL') || 'http://localhost:5000/gnn-embedding';
+
+// Main handler function
+Deno.serve(async (req) => {
+  // Get the request payload
+  const payload = await req.json();
+  
+  // Extract the relevant data from the payload
+  const {
+    type, // 'INSERT', 'UPDATE', etc.
+    table,
+    record,
+    schema,
+  } = payload;
+  
+  // Only process INSERT operations on the patents table
+  if (type !== 'INSERT' || table !== 'patents' || schema !== 'public') {
+    return new Response(JSON.stringify({ message: 'Not a patent insert' }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200,
+    });
+  }
+  
+  try {
+    // Extract patent data
+    const { id, title, abstract } = record;
+    
+    if (!id || !title || !abstract) {
+      throw new Error('Missing required patent data');
+    }
+    
+    // Combine title and abstract for embedding
+    const textToEmbed = `Title: ${title}\nAbstract: ${abstract}`;
+    
+    // 1. Generate OpenAI embeddings
+    const embeddingResponse = await openai.createEmbedding({
+      model: 'text-embedding-ada-002',
+      input: textToEmbed,
+    });
+    
+    const [{ embedding }] = embeddingResponse.data.data;
+    
+    // 2. Call GNN service to generate graph-based embeddings
+    const gnnResponse = await fetch(GNN_SERVICE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        patent_id: id,
+        title,
+        abstract,
+      }),
+    });
+    
+    if (!gnnResponse.ok) {
+      throw new Error(`GNN service error: ${gnnResponse.statusText}`);
+    }
+    
+    const gnnData = await gnnResponse.json();
+    const gnnEmbedding = gnnData.embedding;
+    
+    // 3. Update the patent record with both embeddings
+    const { error } = await supabaseClient
+      .from('patents')
+      .update({
+        embedding,
+        gnn_embedding: gnnEmbedding,
+      })
+      .eq('id', id);
+    
+    if (error) {
+      throw new Error(`Error updating patent: ${error.message}`);
+    }
+    
+    // Return success response
+    return new Response(
+      JSON.stringify({
+        message: 'Successfully updated patent embeddings',
+        patent_id: id,
+      }),
+      {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
+    
+  } catch (error) {
+    // Log the error
+    console.error('Error processing patent embedding:', error);
+    
+    // Return error response
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+      }),
+      {
+        headers: { 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
+  }
+});
